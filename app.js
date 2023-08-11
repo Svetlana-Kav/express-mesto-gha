@@ -1,13 +1,13 @@
 const express = require('express');
 const mongoose = require('mongoose');
+// eslint-disable-next-line import/no-extraneous-dependencies
+const helmet = require('helmet');
 const bodyParser = require('body-parser');
-// const Card = require('./models/card');
 const routes = require('./routes/index');
 require('dotenv').config();
 
-// Слушаем 3000 порт
-const { PORT } = process.env;
-mongoose.connect('mongodb://127.0.0.1:27017/mestodb', {
+const { PORT = 3000, DB_URL = 'mongodb://127.0.0.1:27017/mestodb' } = process.env;
+mongoose.connect(DB_URL, {
   useNewUrlParser: true,
 }).then(() => {
   console.log('connected');
@@ -17,6 +17,7 @@ mongoose.connect('mongodb://127.0.0.1:27017/mestodb', {
 
 const app = express();
 
+app.use(helmet());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
