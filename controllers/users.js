@@ -1,114 +1,131 @@
+// eslint-disable-next-line import/no-extraneous-dependencies
+const bcrypt = require('bcryptjs');
+// eslint-disable-next-line import/no-extraneous-dependencies
+const jwt = require('jsonwebtoken');
 const User = require('../models/user');
+const ValidationError = require('../errors/validation-error');
+const DuplicateKeyError = require('../errors/duplicate-key-error');
+const DocumentNotFoundError = require('../errors/document-not-found-error');
+const IncorrectRequest = require('../errors/incorrect-request-error');
+require('dotenv').config();
 
-module.exports.createUser = (req, res) => {
-  const { name, about, avatar } = req.body;
-  User.create({ name, about, avatar })
-    .then((user) => res.status(201).send({ data: user }))
-    .catch((err) => {
-      if (err.name === 'ValidationError') {
-        return res.status(400).send({
-          message: 'Неправильный запрос',
+const { JWT_SECRET } = process.env;
+
+module.exports.login = (req, res, next) => {
+  const { email, password } = req.body;
+
+  return User.findUserByCredentials(email, password)
+    .then((user) => {
+      const token = jwt.sign({ _id: user._id }, JWT_SECRET, { expiresIn: '7d' });
+      res.send({ token });
+    })
+    .catch(next);
+};
+
+module.exports.createUser = (req, res, next) => {
+  const {
+    name,
+    about,
+    avatar,
+    email,
+    password,
+  } = req.body;
+  bcrypt.hash(password, 10)
+    .then((hash) => {
+      User.create({
+        name,
+        about,
+        avatar,
+        email,
+        password: hash,
+      })
+        .then((user) => res.status(201).send({ data: user }))
+        .catch((err) => {
+          if (err.name === 'ValidationError') {
+            next(new ValidationError('Неправильный запрос'));
+          }
+          if (err.code === 11000) {
+            next(new DuplicateKeyError('Пользователь с таким email уже существует'));
+          } else {
+            next(err);
+          }
         });
-      }
-      return res.status(500).send({
-        message: 'Внутренняя ошибка сервера',
-      });
     });
 };
 
-module.exports.getUsers = (req, res) => {
+module.exports.getUsers = (req, res, next) => {
   User.find({})
     .orFail()
     .then((users) => res.status(200).send({ data: users }))
     // eslint-disable-next-line consistent-return
     .catch((err) => {
       if (err.name === 'DocumentNotFoundError') {
-        return res.status(404).send({
-          message: 'Запрашиваемые данные не найдены',
-        });
+        next(new DocumentNotFoundError('Запрашиваемые данные не найдены.'));
+      } else {
+        next(err);
       }
-      res.status(500).send({
-        message: 'Внутренняя ошибка сервера',
-      });
     });
 };
 
-module.exports.getUser = (req, res) => {
+module.exports.getUser = (req, res, next) => {
   User.findById(req.params.userId)
     .orFail()
     .then((user) => res.status(200).send({ data: user }))
     // eslint-disable-next-line consistent-return
     .catch((err) => {
       if (err.name === 'CastError') {
-        return res.status(400).send({
-          message: 'Запрашиваемый пользователь не найден',
-        });
+        next(new IncorrectRequest('Запрашиваемый пользователь не найден'));
       }
       if (err.name === 'DocumentNotFoundError') {
-        return res.status(404).send({
-          message: 'Запрашиваемые данные не найдены',
-        });
+        next(new DocumentNotFoundError('Запрашиваемые данные не найдены.'));
+      } else {
+        next(err);
       }
-      return res.status(500).send({
-        message: 'Внутренняя ошибка сервера',
-      });
     });
 };
 
-module.exports.editProfile = (req, res) => {
+module.exports.editProfile = (req, res, next) => {
   User.findByIdAndUpdate(req.user._id, req.body, {
     new: true,
     runValidators: true,
   })
     .orFail()
     .then((user) => res.status(200).send({ data: user }))
+    // eslint-disable-next-line consistent-return
     .catch((err) => {
       if (err.name === 'CastError') {
-        return res.status(400).send({
-          message: 'Запрашиваемый пользователь не найден',
-        });
+        next(new IncorrectRequest('Запрашиваемый пользователь не найден'));
       }
       if (err.name === 'ValidationError') {
-        return res.status(400).send({
-          message: 'Неправильный запрос',
-        });
+        next(new IncorrectRequest('Неправильный запрос'));
       }
       if (err.name === 'DocumentNotFoundError') {
-        return res.status(404).send({
-          message: 'Запрашиваемые данные не найдены',
-        });
+        next(new DocumentNotFoundError('Запрашиваемые данные не найдены.'));
+      } else {
+        next(err);
       }
-      return res.status(500).send({
-        message: 'Внутренняя ошибка сервера',
-      });
     });
 };
 
-module.exports.editAvatar = (req, res) => {
+module.exports.editAvatar = (req, res, next) => {
   User.findByIdAndUpdate(req.user._id, req.body, {
     new: true,
     runValidators: true,
   })
     .orFail()
     .then((user) => res.status(200).send({ data: user }))
+    // eslint-disable-next-line consistent-return
     .catch((err) => {
       if (err.name === 'CastError') {
-        return res.status(400).send({
-          message: 'Запрашиваемый пользователь не найден',
-        });
+        next(new IncorrectRequest('Запрашиваемый пользователь не найден'));
       }
       if (err.name === 'ValidationError') {
-        return res.status(400).send({
-          message: 'Неправильный запрос',
-        });
+        next(new IncorrectRequest('Неправильный запрос'));
       }
       if (err.name === 'DocumentNotFoundError') {
-        return res.status(404).send({
-          message: 'Запрашиваемые данные не найдены',
-        });
+        next(new DocumentNotFoundError('Запрашиваемые данные не найдены.'));
+      } else {
+        next(err);
       }
-      return res.status(500).send({
-        message: 'Внутренняя ошибка сервера',
-      });
     });
 };

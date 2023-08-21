@@ -1,6 +1,9 @@
 const Card = require('../models/card');
+const ValidationError = require('../errors/validation-error');
+const DocumentNotFoundError = require('../errors/document-not-found-error');
+const IncorrectRequest = require('../errors/incorrect-request-error');
 
-module.exports.createCard = (req, res) => {
+module.exports.createCard = (req, res, next) => {
   const { name, link } = req.body;
   const owner = req.user._id;
 
@@ -8,52 +11,47 @@ module.exports.createCard = (req, res) => {
     .then((card) => res.status(201).send({ data: card }))
     .catch((err) => {
       if (err.name === 'ValidationError') {
-        return res.status(400).send({
-          message: 'Неправильный запрос',
-        });
+        next(new ValidationError('Неправильный запрос'));
+      } else {
+        next(err);
       }
-      return res.status(500).send({
-        message: 'Внутренняя ошибка сервера',
-      });
     });
 };
 
-module.exports.getCards = (req, res) => {
+module.exports.getCards = (req, res, next) => {
   Card.find({})
     .orFail()
     .then((cards) => res.status(200).send({ data: cards }))
     // eslint-disable-next-line consistent-return
     .catch((err) => {
       if (err.name === 'DocumentNotFoundError') {
-        return res.status(404).send({
-          message: 'Запрашиваемые данные не найдены',
-        });
+        next(new DocumentNotFoundError('Запрашиваемые данные не найдены.'));
+      } else {
+        next(err);
       }
-      res.status(500).send({ message: 'Внутренняя ошибка сервера' });
     });
 };
 
-module.exports.deleteCard = (req, res) => {
-  Card.findByIdAndRemove(req.params.cardId)
-    .orFail()
-    .then((card) => res.status(200).send({ data: card }))
+module.exports.deleteCard = (req, res, next) => {
+  Card.findById(req.params.cardId)
     // eslint-disable-next-line consistent-return
-    .catch((err) => {
-      if (err.name === 'CastError') {
-        return res.status(400).send({
-          message: 'Запрашиваемый пользователь не найден',
-        });
+    .then((card) => {
+      if (!card) {
+        next(new DocumentNotFoundError('Запрашиваемые данные не найдены.'));
       }
-      if (err.name === 'DocumentNotFoundError') {
-        return res.status(404).send({
-          message: 'Запрашиваемые данные не найдены',
-        });
+      if (card.owner.valueOf() !== req.user._id) {
+        next(new ValidationError('Нельзя удалять чужие карточки'));
       }
-      return res.status(500).send({ message: 'Внутренняя ошибка сервера' });
-    });
+
+      Card.findByIdAndRemove(req.params.cardId)
+        .orFail()
+        .then((infoCard) => res.status(200).send({ data: infoCard }))
+        .catch((err) => res.send({ message: err.message }));
+    })
+    .catch(next);
 };
 
-module.exports.addLikeCard = (req, res) => {
+module.exports.addLikeCard = (req, res, next) => {
   Card.findByIdAndUpdate(
     req.params.cardId,
     { $addToSet: { likes: req.user._id } }, // добавить _id в массив, если его там нет
@@ -63,27 +61,20 @@ module.exports.addLikeCard = (req, res) => {
     .then((card) => res.status(200).send({ data: card }))
     .catch((err) => {
       if (err.name === 'CastError') {
-        return res.status(400).send({
-          message: 'Запрашиваемый пользователь не найден',
-        });
+        next(new IncorrectRequest('Запрашиваемый пользователь не найден'));
       }
       if (err.name === 'ValidationError') {
-        return res.status(400).send({
-          message: 'Неправильный запрос',
-        });
+        next(new IncorrectRequest('Неправильный запрос'));
       }
       if (err.name === 'DocumentNotFoundError') {
-        return res.status(404).send({
-          message: 'Запрашиваемые данные не найдены',
-        });
+        next(new DocumentNotFoundError('Запрашиваемые данные не найдены.'));
+      } else {
+        next(err);
       }
-      return res.status(500).send({
-        message: 'Внутренняя ошибка сервера',
-      });
     });
 };
 
-module.exports.deleteLikeCard = (req, res) => {
+module.exports.deleteLikeCard = (req, res, next) => {
   Card.findByIdAndUpdate(
     req.params.cardId,
     { $pull: { likes: req.user._id } }, // убрать _id из массива
@@ -93,22 +84,15 @@ module.exports.deleteLikeCard = (req, res) => {
     .then((card) => res.status(200).send({ data: card }))
     .catch((err) => {
       if (err.name === 'CastError') {
-        return res.status(400).send({
-          message: 'Запрашиваемый пользователь не найден',
-        });
+        next(new IncorrectRequest('Запрашиваемый пользователь не найден'));
       }
       if (err.name === 'ValidationError') {
-        return res.status(400).send({
-          message: 'Неправильный запрос',
-        });
+        next(new IncorrectRequest('Неправильный запрос'));
       }
       if (err.name === 'DocumentNotFoundError') {
-        return res.status(404).send({
-          message: 'Запрашиваемые данные не найдены',
-        });
+        next(new DocumentNotFoundError('Запрашиваемые данные не найдены.'));
+      } else {
+        next(err);
       }
-      return res.status(500).send({
-        message: 'Внутренняя ошибка сервера',
-      });
     });
 };
