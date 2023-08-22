@@ -38,14 +38,15 @@ module.exports.deleteCard = (req, res, next) => {
     .then((card) => {
       if (!card) {
         next(new DocumentNotFoundError('Запрашиваемые данные не найдены.'));
+        return;
       }
       if (card.owner.valueOf() !== req.user._id) {
         next(new ValidationError('Нельзя удалять чужие карточки'));
+        return;
       }
-
-      Card.findByIdAndRemove(req.params.cardId)
+      Card.deleteOne(card)
         .orFail()
-        .then((infoCard) => res.status(200).send({ data: infoCard }))
+        .then(() => res.status(200).send({ data: card }))
         .catch((err) => res.send({ message: err.message }));
     })
     .catch(next);

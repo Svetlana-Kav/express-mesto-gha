@@ -2,6 +2,8 @@ const express = require('express');
 const mongoose = require('mongoose');
 // eslint-disable-next-line import/no-extraneous-dependencies
 const helmet = require('helmet');
+// eslint-disable-next-line import/no-extraneous-dependencies
+const rateLimit = require('express-rate-limit');
 const bodyParser = require('body-parser');
 const routes = require('./routes/index');
 require('dotenv').config();
@@ -16,7 +18,14 @@ mongoose.connect(DB_URL, {
 });
 
 const app = express();
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
+app.use(limiter);
 app.use(helmet());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));

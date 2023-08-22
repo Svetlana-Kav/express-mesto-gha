@@ -39,7 +39,14 @@ module.exports.createUser = (req, res, next) => {
         email,
         password: hash,
       })
-        .then((user) => res.status(201).send({ data: user }))
+        .then((user) => {
+          const { _id } = user;
+
+          return res.status(201).send({
+            email,
+            _id,
+          });
+        })
         .catch((err) => {
           if (err.name === 'ValidationError') {
             next(new ValidationError('Неправильный запрос'));
@@ -118,11 +125,9 @@ module.exports.editAvatar = (req, res, next) => {
     .catch((err) => {
       if (err.name === 'CastError') {
         next(new IncorrectRequest('Запрашиваемый пользователь не найден'));
-      }
-      if (err.name === 'ValidationError') {
+      } else if (err.name === 'ValidationError') {
         next(new IncorrectRequest('Неправильный запрос'));
-      }
-      if (err.name === 'DocumentNotFoundError') {
+      } else if (err.name === 'DocumentNotFoundError') {
         next(new DocumentNotFoundError('Запрашиваемые данные не найдены.'));
       } else {
         next(err);
