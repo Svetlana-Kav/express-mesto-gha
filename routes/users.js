@@ -3,7 +3,7 @@ const router = require('express').Router();
 const { celebrate, Joi } = require('celebrate');
 const { regularLink } = require('../utils/constants');
 const {
-  // createUser,
+  getProfile,
   getUsers,
   getUser,
   editProfile,
@@ -13,11 +13,7 @@ require('dotenv').config();
 
 router.get('/', getUsers);
 
-router.get('/:userId', celebrate({
-  params: Joi.object().keys({
-    userId: Joi.string().length(24).hex().required(),
-  }),
-}), getUser);
+router.get('/me', getProfile);
 
 router.patch('/me', celebrate({
   body: Joi.object().keys({
@@ -33,5 +29,11 @@ router.patch('/me/avatar', celebrate({
       .pattern(regularLink),
   }),
 }), editAvatar);
+
+router.get('/:userId', celebrate({
+  params: Joi.object().keys({
+    userId: Joi.string().length(24).hex().required(),
+  }),
+}), getUser);
 
 module.exports = router;

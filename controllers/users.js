@@ -91,6 +91,23 @@ module.exports.getUser = (req, res, next) => {
     });
 };
 
+module.exports.getProfile = (req, res, next) => {
+  User.findById(req.user._id)
+    .orFail()
+    .then((user) => res.status(200).send({ data: user }))
+    // eslint-disable-next-line consistent-return
+    .catch((err) => {
+      if (err.name === 'CastError') {
+        next(new IncorrectRequest('Запрашиваемый пользователь не найден'));
+      }
+      if (err.name === 'DocumentNotFoundError') {
+        next(new DocumentNotFoundError('Запрашиваемые данные не найдены.'));
+      } else {
+        next(err);
+      }
+    });
+};
+
 module.exports.editProfile = (req, res, next) => {
   User.findByIdAndUpdate(req.user._id, req.body, {
     new: true,
